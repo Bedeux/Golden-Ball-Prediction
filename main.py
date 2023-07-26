@@ -31,31 +31,44 @@ def get_all_player_id_from_club(club_id):
 
 def get_player_stat(player_id):
     r = requests.get("https://fbref.com/fr/joueurs/" + player_id)
-    print("https://fbref.com/fr/joueurs/" + player_id)
     html_content = r.text
 
     soup = BeautifulSoup(html_content, 'html.parser')
     table = soup.find('table', {'id': 'stats_standard_dom_lg'})
-    tbody = table.find('tbody')
-    rows = tbody.find_all('tr')
-    data = []
-    columns = []  
+    if table is not None:
+        tbody = table.find('tbody')
+        rows = tbody.find_all('tr')
+        data = []
+        columns = []  
 
-    for row in rows:
-        cols = row.find_all('td')
-        if not columns:
-            # Si les noms de colonnes ne sont pas déjà extraits, le faire à partir des en-têtes
-            header = row.find('th')
-            columns.append(header['data-stat'])
-        # Récupérer les valeurs des <td> et leurs attributs data-stat
-        values = [(col['data-stat'], col.text.strip()) for col in cols]
-        data.append(values)
-    print(data)
+        for row in rows:
+            cols = row.find_all('td')
+            if not columns:
+                # Si les noms de colonnes ne sont pas déjà extraits, le faire à partir des en-têtes
+                header = row.find('th')
+                columns.append(header['data-stat'])
+            # Récupérer les valeurs des <td> et leurs attributs data-stat
+            values = [(col['data-stat'], col.text.strip()) for col in cols]
+            values.insert(0,('year',row.find('th', {'data-stat': 'year_id'}).text.strip()))
+            data.append(values)
+        
+        # Convertir les données en liste de dictionnaires de valeurs
+        data_dicts = [{item[i][0]: item[i][1] for i in range(len(item))} for item in data]
 
+        df = pd.DataFrame(data_dicts)
+        df.insert(0, 'player_id', player_id.split('/')[0])
+        df.insert(1, 'footballer_name', player_id.split('/')[1])
+
+        return df
+    else :
+        return pd.DataFrame()
 
 # print(get_all_player_id_from_club("Lens"))
 test = get_all_big_clubs_id()
-# print(test[3])
-test_player = get_all_player_id_from_club(test[0])[0]
 
-print(get_player_stat(test_player))
+players_of_club = get_all_player_id_from_club(test[0]) #TODO Make a loop for every club
+df_fin = pd.DataFrame()
+for player in players_of_club:
+    df = get_player_stat(player)
+    df_fin = pd.concat([df_fin, df], axis=0)
+df_fin.to_csv('data.csv', encoding='utf-8', index=False)
