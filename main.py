@@ -30,16 +30,32 @@ def get_all_player_id_from_club(club_id):
 
 
 def get_player_stat(player_id):
-    print("https://fbref.com/fr/joueurs/" + player_id)
     r = requests.get("https://fbref.com/fr/joueurs/" + player_id)
-    df = pd.read_html(r.content)
-    pd.set_option('display.max_columns', None)
+    print("https://fbref.com/fr/joueurs/" + player_id)
+    html_content = r.text
 
-    print(df)
+    soup = BeautifulSoup(html_content, 'html.parser')
+    table = soup.find('table', {'id': 'stats_standard_dom_lg'})
+    tbody = table.find('tbody')
+    rows = tbody.find_all('tr')
+    data = []
+    columns = []  
+
+    for row in rows:
+        cols = row.find_all('td')
+        if not columns:
+            # Si les noms de colonnes ne sont pas déjà extraits, le faire à partir des en-têtes
+            header = row.find('th')
+            columns.append(header['data-stat'])
+        # Récupérer les valeurs des <td> et leurs attributs data-stat
+        values = [(col['data-stat'], col.text.strip()) for col in cols]
+        data.append(values)
+    print(data)
+
 
 # print(get_all_player_id_from_club("Lens"))
 test = get_all_big_clubs_id()
 # print(test[3])
 test_player = get_all_player_id_from_club(test[0])[0]
 
-get_player_stat(test_player)
+print(get_player_stat(test_player))
